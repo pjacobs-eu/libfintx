@@ -118,6 +118,42 @@ namespace libfintx.EBICSConfig
             }
         }
 
+        /// <summary>
+        /// SHA-256 over the DER encoded certificate. EBICS 3.0 (H005) identifies keys by their
+        /// certificate: this digest is used in BankPubKeyDigests, EncryptionPubKeyDigest and the
+        /// initialisation letters.
+        /// </summary>
+        public byte[] CertificateDigest
+        {
+            get
+            {
+                if (_cert == null)
+                {
+                    return null;
+                }
+
+                using (var sha256 = SHA256.Create())
+                {
+                    return sha256.ComputeHash(_cert.RawData);
+                }
+            }
+        }
+
+        /// <summary>
+        /// The key digest as the given EBICS version expects it: the certificate digest for H005,
+        /// the hash over exponent and modulus for H004.
+        /// </summary>
+        public byte[] DigestFor(EbicsVersion version)
+        {
+            if (version != EbicsVersion.H005)
+            {
+                return Digest;
+            }
+
+            return CertificateDigest
+                   ?? throw new InvalidOperationException("EBICS H005 requires the key as X.509 certificate");
+        }
+
         public libfintx.Xsd.H004.PubKeyValueType PubKeyValueType { get
             {
                 return new libfintx.Xsd.H004.PubKeyValueType
@@ -187,6 +223,16 @@ namespace libfintx.EBICSConfig
 
         public void Save(Action<byte[]> writebytes)
         {
+            // A certificate is written as such: EBICS 3.0 needs it again for the key digests.
+            if (_cert != null)
+            {
+                var pem = "-----BEGIN CERTIFICATE-----\n"
+                          + Convert.ToBase64String(_cert.RawData, Base64FormattingOptions.InsertLineBreaks).Replace("\r\n", "\n")
+                          + "\n-----END CERTIFICATE-----\n";
+                writebytes(Encoding.ASCII.GetBytes(pem));
+                return;
+            }
+
             using (var ms = new MemoryStream())
             {
                 Org.BouncyCastle.Crypto.Parameters.RsaKeyParameters rsa = new Org.BouncyCastle.Crypto.Parameters.RsaKeyParameters(false,
@@ -208,7 +254,15 @@ namespace libfintx.EBICSConfig
             using (var sr = new StreamReader(ms))
             {
                 var pr = new PemReader(sr);
-                Org.BouncyCastle.Crypto.Parameters.RsaKeyParameters rsa = (Org.BouncyCastle.Crypto.Parameters.RsaKeyParameters)pr.ReadObject();
+                var obj = pr.ReadObject();
+
+                if (obj is Org.BouncyCastle.X509.X509Certificate bcCert)
+                {
+                    Certificate = KeyPairCertificates.FromDer(bcCert.GetEncoded());
+                    return;
+                }
+
+                Org.BouncyCastle.Crypto.Parameters.RsaKeyParameters rsa = (Org.BouncyCastle.Crypto.Parameters.RsaKeyParameters)obj;
                 RSAParameters r = new RSAParameters();
                 r.Modulus = rsa.Modulus.ToByteArrayUnsigned();
                 r.Exponent = rsa.Exponent.ToByteArrayUnsigned();
@@ -218,6 +272,23 @@ namespace libfintx.EBICSConfig
         }
 
         public override string ToString() => _printer.PrintObject(this);
+    }
+
+    /// <summary>Loads certificates as EBICS transmits them.</summary>
+    public static class KeyPairCertificates
+    {
+        /// <summary>A base64 encoded DER certificate, as in ds:X509Certificate.</summary>
+        public static X509Certificate2 FromBase64(string base64) =>
+            FromDer(Convert.FromBase64String(base64.Trim()));
+
+        public static X509Certificate2 FromDer(byte[] der)
+        {
+#if NET9_0_OR_GREATER
+            return X509CertificateLoader.LoadCertificate(der);
+#else
+            return new X509Certificate2(der);
+#endif
+        }
     }
 
     /// <summary>

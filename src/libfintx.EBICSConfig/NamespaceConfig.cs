@@ -45,6 +45,14 @@ namespace libfintx.EBICSConfig
 
         public string SignatureData { get; set; }
 
+        /// <summary>
+        /// EBICS version the namespaces belong to. Serializers use it where H005 differs from H004
+        /// in structure, not only in namespace (AdminOrderType, X.509 key data, digests).
+        /// </summary>
+        public EbicsVersion Version { get; set; } = EbicsVersion.H004;
+
+        public bool IsH005 => Version == EbicsVersion.H005;
+
         static NamespaceConfig()
         {
 

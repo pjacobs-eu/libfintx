@@ -118,8 +118,8 @@ namespace libfintx.EBICS.Commands
                 var transKey = DecryptRsa(encryptedTransKey);
                 var decryptedOd = DecryptAES(encryptedOd, transKey);
 
-                if (!StructuralComparisons.StructuralEqualityComparer.Equals(Config.User.CryptKeys.Digest,
-                    encryptionPubKeyDigest))
+                if (!StructuralComparisons.StructuralEqualityComparer.Equals(
+                    Config.User.CryptKeys.DigestFor(Config.Version), encryptionPubKeyDigest))
                 {
                     throw new DeserializationException("Wrong digest in xml", xph.Xml);
                 }

@@ -117,12 +117,24 @@ namespace libfintx.Xml
 
         public XElement GetAuthenticationPubKeyInfoX509Data()
         {
-            return _doc.XPathSelectElement($"/*/{DNS(XmlNames.AuthenticationPubKeyInfo)}/{DNS(XmlNames.X509)}", _nm);
+            return _doc.XPathSelectElement($"/*/{DNS(XmlNames.AuthenticationPubKeyInfo)}/{SNS(XmlNames.X509Data)}", _nm);
         }
 
         public XElement GetEncryptionPubKeyInfoX509Data()
         {
-            return _doc.XPathSelectElement($"/*/{DNS(XmlNames.EncryptionPubKeyInfo)}/{DNS(XmlNames.X509)}", _nm);
+            return _doc.XPathSelectElement($"/*/{DNS(XmlNames.EncryptionPubKeyInfo)}/{SNS(XmlNames.X509Data)}", _nm);
+        }
+
+        public XElement GetAuthenticationPubKeyInfoCertificate()
+        {
+            return _doc.XPathSelectElement(
+                $"/*/{DNS(XmlNames.AuthenticationPubKeyInfo)}/{SNS(XmlNames.X509Data)}/{SNS(XmlNames.X509Certificate)}", _nm);
+        }
+
+        public XElement GetEncryptionPubKeyInfoCertificate()
+        {
+            return _doc.XPathSelectElement(
+                $"/*/{DNS(XmlNames.EncryptionPubKeyInfo)}/{SNS(XmlNames.X509Data)}/{SNS(XmlNames.X509Certificate)}", _nm);
         }
 
         public XElement GetEncryptionPubKeyInfoPubKeyValue()

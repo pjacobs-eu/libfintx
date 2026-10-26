@@ -43,7 +43,7 @@ namespace libfintx.Xml
             if (SegmentNumber != null)
             {
                 x.Add(new XElement(nsEbics + XmlNames.SegmentNumber,
-                    new XAttribute(XmlNames.lastSegment, LastSegment),
+                    new XAttribute(XmlNames.lastSegment, LastSegment ? "true" : "false"),
                     SegmentNumber
                 ));
             }

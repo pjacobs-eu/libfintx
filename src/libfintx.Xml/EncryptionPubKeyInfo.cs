@@ -37,6 +37,14 @@ namespace libfintx.Xml
             XNamespace nsEbics = UseEbicsDefaultNamespace ? Namespaces.Ebics : Namespaces.SignatureData;
             XNamespace nsDsig = Namespaces.XmlDsig;
 
+            if (Namespaces.IsH005)
+            {
+                return new XElement(nsEbics + XmlNames.EncryptionPubKeyInfo,
+                    X509DataElement.Create(Namespaces, CryptKeys.Certificate),
+                    new XElement(nsEbics + XmlNames.EncryptionVersion, CryptKeys.Version.ToString())
+                );
+            }
+
             var rsaParams = CryptKeys.PublicKey.ExportParameters(false);
             var b64Mod = Convert.ToBase64String(rsaParams.Modulus);
             var b64Exp = Convert.ToBase64String(rsaParams.Exponent);

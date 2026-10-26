@@ -39,6 +39,14 @@ namespace libfintx.Xml
 
             XNamespace nsDsig = Namespaces.XmlDsig;
 
+            if (Namespaces.IsH005)
+            {
+                return new XElement(nsEBICS + XmlNames.AuthenticationPubKeyInfo,
+                    X509DataElement.Create(Namespaces, AuthKeys.Certificate),
+                    new XElement(nsEBICS + XmlNames.AuthenticationVersion, AuthKeys.Version.ToString())
+                );
+            }
+
             var rsaParams = AuthKeys.PublicKey.ExportParameters(false);
             var b64Mod = Convert.ToBase64String(rsaParams.Modulus);
             var b64Exp = Convert.ToBase64String(rsaParams.Exponent);

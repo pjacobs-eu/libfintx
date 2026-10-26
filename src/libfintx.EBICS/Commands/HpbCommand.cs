@@ -78,9 +78,46 @@ namespace libfintx.EBICS.Commands
 
                     var r = new XPathHelper(hpbrod, Namespaces);
 
-                    if (r.GetAuthenticationPubKeyInfoX509Data() != null || r.GetEncryptionPubKeyInfoX509Data() != null)
+                    // EBICS 3.0 delivers the bank keys as X.509 certificates; the digests over them
+                    // are what the bank publishes and what goes into BankPubKeyDigests afterwards.
+                    var authCert = r.GetAuthenticationPubKeyInfoCertificate()?.Value;
+                    var cryptCert = r.GetEncryptionPubKeyInfoCertificate()?.Value;
+                    if (authCert != null || cryptCert != null)
                     {
-                        throw new DeserializationException("X509 not supported yet", payload);
+                        if (authCert == null || cryptCert == null)
+                        {
+                            throw new DeserializationException("bank delivered only one of its keys as certificate", payload);
+                        }
+
+                        if (!Enum.TryParse<AuthVersion>(r.GetAuthenticationPubKeyInfoAuthenticationVersion()?.Value,
+                            out var certAuthVersion))
+                        {
+                            throw new DeserializationException(
+                                "unknown authentication version for bank's authentication key");
+                        }
+
+                        if (!Enum.TryParse<CryptVersion>(r.GetEncryptionPubKeyInfoEncryptionVersion()?.Value,
+                            out var certCryptVersion))
+                        {
+                            throw new DeserializationException("unknown encryption version for bank's encryption key");
+                        }
+
+                        Response.Bank.AuthKeys = new AuthKeyPair
+                        {
+                            Certificate = KeyPairCertificates.FromBase64(authCert),
+                            Version = certAuthVersion
+                        };
+                        Response.Bank.CryptKeys = new CryptKeyPair
+                        {
+                            Certificate = KeyPairCertificates.FromBase64(cryptCert),
+                            Version = certCryptVersion
+                        };
+
+                        s_logger.LogDebug("Bank authentication certificate digest: {digest}",
+                            CryptoUtils.Print(Response.Bank.AuthKeys.CertificateDigest));
+                        s_logger.LogDebug("Bank encryption certificate digest: {digest}",
+                            CryptoUtils.Print(Response.Bank.CryptKeys.CertificateDigest));
+                        return dr;
                     }
 
                     if (r.GetAuthenticationPubKeyInfoPubKeyValue() != null)

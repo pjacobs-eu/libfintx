@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\libfintx.FinTS\libfintx.FinTS.csproj" />
+    <ProjectReference Include="..\libfintx.EBICS\libfintx.EBICS.csproj" />
   </ItemGroup>
 
   <ItemGroup>

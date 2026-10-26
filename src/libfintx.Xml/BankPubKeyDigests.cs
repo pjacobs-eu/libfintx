@@ -39,12 +39,12 @@ namespace libfintx.Xml
                 new XElement(nsEBICS + XmlNames.Authentication,
                     new XAttribute(XmlNames.Algorithm, DigestAlgorithm),
                     new XAttribute(XmlNames.Version, Bank.AuthKeys.Version.ToString()),
-                    Convert.ToBase64String(Bank.AuthKeys.Digest)
+                    Convert.ToBase64String(Bank.AuthKeys.DigestFor(Namespaces.Version))
                 ),
                 new XElement(nsEBICS + XmlNames.Encryption,
                     new XAttribute(XmlNames.Algorithm, DigestAlgorithm),
                     new XAttribute(XmlNames.Version, Bank.CryptKeys.Version.ToString()),
-                    Convert.ToBase64String(Bank.CryptKeys.Digest)
+                    Convert.ToBase64String(Bank.CryptKeys.DigestFor(Namespaces.Version))
                 )
             );
         }

@@ -33,6 +33,21 @@ namespace libfintx.Xml
         {
             XNamespace nsEbics = Namespaces.Ebics;
 
+            // EBICS 3.0: AdminOrderType replaces OrderType, OrderAttribute is gone. Business
+            // transactions are BTD/BTU with their service in the order parameters.
+            if (Namespaces.IsH005)
+            {
+                var h005 = new XElement(nsEbics + XmlNames.OrderDetails,
+                    new XElement(nsEbics + XmlNames.AdminOrderType, OrderType));
+
+                if (StandardOrderParams != null)
+                {
+                    h005.Add(StandardOrderParams.Serialize());
+                }
+
+                return h005;
+            }
+
             var x = new XElement(nsEbics + XmlNames.OrderDetails,
                 new XElement(nsEbics + XmlNames.OrderType, OrderType),
                 new XElement(nsEbics + XmlNames.OrderAttribute, OrderAttribute)

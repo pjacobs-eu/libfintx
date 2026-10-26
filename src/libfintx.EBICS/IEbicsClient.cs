@@ -38,5 +38,11 @@ namespace libfintx.EBICS
         HiaResponse HIA(HiaParams p);
         SprResponse SPR(SprParams p);
         CddResponse CDD(CddParams p);
+
+        /// <summary>
+        /// EBICS 3.0 download of a business transaction format (e.g. camt.053 as ZIP).
+        /// Requires <see cref="EbicsVersion.H005"/>.
+        /// </summary>
+        BtdResponse BTD(BtdParams p);
     }
 }

@@ -79,7 +79,11 @@ namespace libfintx.EBICS
                 nsCfg.XmlDsig = "http://www.w3.org/2000/09/xmldsig#";
                 nsCfg.Cct = "urn:iso:std:iso:20022:tech:xsd:pain.001.001.03";
                 nsCfg.Cdd = "urn:iso:std:iso:20022:tech:xsd:pain.008.001.02";
-                nsCfg.SignatureData = "http://www.ebics.org/S001";
+                // EBICS 3.0 uses signature schema S002 for the key order data (INI).
+                nsCfg.SignatureData = _config.Version == EbicsVersion.H005
+                    ? "http://www.ebics.org/S002"
+                    : "http://www.ebics.org/S001";
+                nsCfg.Version = _config.Version;
 
                 _commandHandler.Namespaces = nsCfg;
             }
@@ -164,6 +168,20 @@ namespace libfintx.EBICS
             using (new MethodLogger(Logger))
             {
                 var resp = _commandHandler.Send<SprResponse>(p);
+                return resp;
+            }
+        }
+
+        public BtdResponse BTD(BtdParams p)
+        {
+            using (new MethodLogger(Logger))
+            {
+                if (_config.Version != EbicsVersion.H005)
+                {
+                    throw new NotSupportedException("BTD requires EBICS 3.0 (H005)");
+                }
+
+                var resp = _commandHandler.Send<BtdResponse>(p);
                 return resp;
             }
         }

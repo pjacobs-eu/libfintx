@@ -39,6 +39,19 @@ namespace libfintx.Xml
             XNamespace nsEbics = Namespaces.SignatureData;
             XNamespace nsDsig = Namespaces.XmlDsig;
 
+            // EBICS 3.0: the key travels as X.509 certificate, PubKeyValue no longer exists.
+            if (Namespaces.IsH005)
+            {
+                return new XElement(nsEbics + XmlNames.SignaturePubKeyOrderData,
+                    new XElement(nsEbics + XmlNames.SignaturePubKeyInfo,
+                        X509DataElement.Create(Namespaces, SignKeys.Certificate),
+                        new XElement(nsEbics + XmlNames.SignatureVersion, SignKeys.Version.ToString())
+                    ),
+                    new XElement(nsEbics + XmlNames.PartnerID, PartnerId),
+                    new XElement(nsEbics + XmlNames.UserID, UserId)
+                );
+            }
+
             var rsaParams = SignKeys.PublicKey.ExportParameters(false);
             var b64Mod = Convert.ToBase64String(rsaParams.Modulus);
             var b64Exp = Convert.ToBase64String(rsaParams.Exponent);
