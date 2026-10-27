@@ -30,8 +30,9 @@ namespace libfintx.EBICS.Commands
     /// accounts, permitted order types and permissions as the bank holds them. The order data is
     /// an XML document (HTDResponseOrderData / HKDResponseOrderData) in the EBICS namespace.
     ///
-    /// EBICS 2.5 sends them with OrderAttribute DZHNN and empty StandardOrderParams; EBICS 3.0
-    /// only as AdminOrderType.
+    /// EBICS 2.5 sends them with OrderAttribute DZHNN, EBICS 3.0 as AdminOrderType. Both need an
+    /// (empty) StandardOrderParams: the H005 schema requires an OrderParams element in the static
+    /// header, and banks reject the request without it (061002 EBICS_INVALID_REQUEST).
     /// </summary>
     internal class CustomerInfoCommand<T> : SegmentedDownloadCommand<T> where T : CustomerInfoResponse, new()
     {
@@ -51,7 +52,6 @@ namespace libfintx.EBICS.Commands
 
         protected override void SetData(byte[] data, int numSegments) => Response.Data = data;
 
-        protected override IXElementSerializer CreateOrderParams() =>
-            Namespaces.IsH005 ? null : new EmptyOrderParams { Namespaces = Namespaces };
+        protected override IXElementSerializer CreateOrderParams() => new EmptyOrderParams { Namespaces = Namespaces };
     }
 }

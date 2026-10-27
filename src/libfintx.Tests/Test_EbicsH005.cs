@@ -10,7 +10,9 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 using System.Xml.Linq;
+using System.Xml.Schema;
 using libfintx.EBICS;
 using libfintx.EBICS.Parameters;
 using libfintx.EBICSConfig;
@@ -367,7 +369,7 @@ namespace libfintx.Tests
         }
 
         [Fact]
-        public void Htd_downloads_the_subscriber_information_without_order_params()
+        public void Htd_downloads_the_subscriber_information_with_empty_order_params()
         {
             var keys = new Keys();
             var xml = System.Text.Encoding.UTF8.GetBytes(
@@ -388,7 +390,10 @@ namespace libfintx.Tests
             var init = bank.Requests[0];
             Assert.Equal("HTD", init.Descendants(Ns + "AdminOrderType").Single().Value);
             Assert.Empty(init.Descendants(Ns + "OrderAttribute"));
-            Assert.Empty(init.Descendants(Ns + "StandardOrderParams"));
+            // The H005 schema requires an OrderParams element; without it banks answer 061002.
+            var orderParams = init.Descendants(Ns + "OrderDetails").Single().Elements().Last();
+            Assert.Equal(Ns + "StandardOrderParams", orderParams.Name);
+            Assert.False(orderParams.HasElements);
             Assert.Equal("0", bank.Requests[1].Descendants(Ns + "ReceiptCode").Single().Value);
         }
 
@@ -404,6 +409,72 @@ namespace libfintx.Tests
 
             Assert.Null(response.Data);
             Assert.Equal("HKD", bank.Requests.Single().Descendants(Ns + "AdminOrderType").Single().Value);
+        }
+
+        /// <summary>The official H005 schemas shipped with libfintx.Xsd, found from the test output upwards.</summary>
+        private static XmlSchemaSet RequestSchemas()
+        {
+            var dir = new DirectoryInfo(AppContext.BaseDirectory);
+            while (dir != null && !Directory.Exists(Path.Combine(dir.FullName, "libfintx.Xsd", "H005")))
+            {
+                dir = dir.Parent;
+            }
+
+            Assert.NotNull(dir);
+            var folder = Path.Combine(dir.FullName, "libfintx.Xsd", "H005");
+            var schemas = new XmlSchemaSet { XmlResolver = new XmlUrlResolver() };
+            // xmldsig-core-schema.xsd carries a DTD, which an import would refuse — so it goes in first,
+            // with its internal subset parsed and the external XMLSchema.dtd (not shipped) skipped.
+            using (var dsig = XmlReader.Create(Path.Combine(folder, "xmldsig-core-schema.xsd"),
+                       new XmlReaderSettings { DtdProcessing = DtdProcessing.Parse, XmlResolver = null }))
+            {
+                schemas.Add(null, dsig);
+            }
+
+            schemas.Add(null, Path.Combine(folder, "ebics_request_H005.xsd"));
+
+            schemas.Compile();
+            return schemas;
+        }
+
+        private static void AssertValid(XmlSchemaSet schemas, XDocument request)
+        {
+            var errors = new List<string>();
+            request.Validate(schemas, (_, e) => errors.Add(e.Message));
+            Assert.True(errors.Count == 0, string.Join("\n", errors) + "\n" + request);
+        }
+
+        [Fact]
+        public void Download_requests_conform_to_the_h005_schema()
+        {
+            var keys = new Keys();
+            var schemas = RequestSchemas();
+            var (orderData, transactionKey, digest) = Encrypt(Encoding.UTF8.GetBytes("<a/>"), keys.Crypt);
+            var cut = orderData.Length / 2;
+
+            foreach (var send in new Func<IEbicsClient, object>[]
+                     {
+                         c => c.HTD(new HtdParams()),
+                         c => c.HKD(new HkdParams()),
+                         c => c.BTD(BtdParams.Camt053(new DateTime(2026, 10, 1), new DateTime(2026, 10, 26))),
+                         c => c.BTD(new BtdParams { ServiceName = "STM", Scope = "DE", MsgName = "camt.052", ContainerType = "ZIP" })
+                     })
+            {
+                using var bank = new FakeBank(
+                    _ => Response("ebicsResponse", "Initialisation", 1, false, "000000", "000000", "0123456789ABCDEF0123456789ABCDEF", 2,
+                        DataTransfer(orderData.Substring(0, cut), transactionKey, digest)),
+                    _ => Response("ebicsResponse", "Transfer", 2, true, "000000", "000000", "0123456789ABCDEF0123456789ABCDEF", null,
+                        DataTransfer(orderData.Substring(cut))),
+                    _ => Response("ebicsResponse", "Receipt", null, false, "011000", "000000", "0123456789ABCDEF0123456789ABCDEF"));
+
+                send(EbicsClient.Factory().Create(ConfigFor(bank.Address, keys, withBankKeys: true)));
+
+                Assert.Equal(3, bank.Requests.Count); // Initialisierung, Transfer, Quittung
+                foreach (var request in bank.Requests)
+                {
+                    AssertValid(schemas, request);
+                }
+            }
         }
 
         [Fact]
