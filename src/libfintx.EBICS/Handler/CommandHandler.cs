@@ -76,6 +76,12 @@ namespace libfintx.EBICS.Handler
                     case BtdParams btd:
                         cmd = new BtdCommand { Params = btd, Config = Config, Namespaces = Namespaces };
                         break;
+                    case HtdParams htd:
+                        cmd = new CustomerInfoCommand<HtdResponse>("HTD") { Params = htd, Config = Config, Namespaces = Namespaces };
+                        break;
+                    case HkdParams hkd:
+                        cmd = new CustomerInfoCommand<HkdResponse>("HKD") { Params = hkd, Config = Config, Namespaces = Namespaces };
+                        break;
                     case C53Params c53:
                         cmd = new C53Command { Params = c53, Config = Config, Namespaces = Namespaces };
                         break;

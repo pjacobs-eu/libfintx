@@ -186,6 +186,22 @@ namespace libfintx.EBICS
             }
         }
 
+        public HtdResponse HTD(HtdParams p)
+        {
+            using (new MethodLogger(Logger))
+            {
+                return _commandHandler.Send<HtdResponse>(p);
+            }
+        }
+
+        public HkdResponse HKD(HkdParams p)
+        {
+            using (new MethodLogger(Logger))
+            {
+                return _commandHandler.Send<HkdResponse>(p);
+            }
+        }
+
         public CddResponse CDD(CddParams p)
         {
             using (new MethodLogger(Logger))

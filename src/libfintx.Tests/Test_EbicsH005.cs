@@ -367,6 +367,46 @@ namespace libfintx.Tests
         }
 
         [Fact]
+        public void Htd_downloads_the_subscriber_information_without_order_params()
+        {
+            var keys = new Keys();
+            var xml = System.Text.Encoding.UTF8.GetBytes(
+                "<HTDResponseOrderData xmlns=\"urn:org:ebics:H005\"><PartnerInfo><AddressInfo><Name>Test</Name>" +
+                "</AddressInfo></PartnerInfo></HTDResponseOrderData>");
+            var (orderData, transactionKey, digest) = Encrypt(xml, keys.Crypt);
+
+            using var bank = new FakeBank(
+                _ => Response("ebicsResponse", "Initialisation", 1, true, "000000", "000000", "TX02", 1,
+                    DataTransfer(orderData, transactionKey, digest)),
+                _ => Response("ebicsResponse", "Receipt", null, false, "011000", "000000", "TX02"));
+
+            var client = EbicsClient.Factory().Create(ConfigFor(bank.Address, keys, withBankKeys: true));
+            var response = client.HTD(new HtdParams());
+
+            Assert.Equal(xml, response.Data);
+            Assert.Equal(2, bank.Requests.Count);
+            var init = bank.Requests[0];
+            Assert.Equal("HTD", init.Descendants(Ns + "AdminOrderType").Single().Value);
+            Assert.Empty(init.Descendants(Ns + "OrderAttribute"));
+            Assert.Empty(init.Descendants(Ns + "StandardOrderParams"));
+            Assert.Equal("0", bank.Requests[1].Descendants(Ns + "ReceiptCode").Single().Value);
+        }
+
+        [Fact]
+        public void Hkd_uses_its_own_order_type()
+        {
+            var keys = new Keys();
+            using var bank = new FakeBank(
+                _ => Response("ebicsResponse", "Initialisation", null, false, "000000", "090005"));
+
+            var client = EbicsClient.Factory().Create(ConfigFor(bank.Address, keys, withBankKeys: true));
+            var response = client.HKD(new HkdParams());
+
+            Assert.Null(response.Data);
+            Assert.Equal("HKD", bank.Requests.Single().Descendants(Ns + "AdminOrderType").Single().Value);
+        }
+
+        [Fact]
         public void Hpb_reads_bank_certificates()
         {
             var keys = new Keys();

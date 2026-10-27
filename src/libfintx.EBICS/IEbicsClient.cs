@@ -44,5 +44,7 @@ namespace libfintx.EBICS
         /// Requires <see cref="EbicsVersion.H005"/>.
         /// </summary>
         BtdResponse BTD(BtdParams p);
+        HtdResponse HTD(HtdParams p);
+        HkdResponse HKD(HkdParams p);
     }
 }
